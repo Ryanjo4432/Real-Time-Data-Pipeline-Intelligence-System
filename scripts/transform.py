@@ -5,7 +5,8 @@ from datetime import datetime
 PROCESSED_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "processed")
 
 
-def transform_prices(raw_prices: dict) -> pd.DataFrame:
+def transform_prices(raw_prices: dict, batch_ts: datetime = None) -> pd.DataFrame:
+    ts = batch_ts or datetime.utcnow()
     rows = []
     for coin_id, metrics in raw_prices.items():
         rows.append({
@@ -14,7 +15,7 @@ def transform_prices(raw_prices: dict) -> pd.DataFrame:
             "market_cap": metrics.get("usd_market_cap"),
             "volume_24h": metrics.get("usd_24h_vol"),
             "change_24h": metrics.get("usd_24h_change"),
-            "fetched_at": datetime.utcnow(),
+            "fetched_at": ts,
         })
     df = pd.DataFrame(rows)
     df.dropna(subset=["price_usd"], inplace=True)
@@ -22,7 +23,8 @@ def transform_prices(raw_prices: dict) -> pd.DataFrame:
     return df
 
 
-def transform_trending(raw_trending: dict) -> pd.DataFrame:
+def transform_trending(raw_trending: dict, batch_ts: datetime = None) -> pd.DataFrame:
+    ts = batch_ts or datetime.utcnow()
     coins = raw_trending.get("coins", [])
     rows = []
     for item in coins:
@@ -32,12 +34,13 @@ def transform_trending(raw_trending: dict) -> pd.DataFrame:
             "name": c.get("name"),
             "symbol": c.get("symbol"),
             "market_cap_rank": c.get("market_cap_rank"),
-            "fetched_at": datetime.utcnow(),
+            "fetched_at": ts,
         })
     return pd.DataFrame(rows)
 
 
-def transform_global(raw_global: dict) -> pd.DataFrame:
+def transform_global(raw_global: dict, batch_ts: datetime = None) -> pd.DataFrame:
+    ts = batch_ts or datetime.utcnow()
     data = raw_global.get("data", {})
     row = {
         "total_market_cap_usd": data.get("total_market_cap", {}).get("usd"),
@@ -45,13 +48,12 @@ def transform_global(raw_global: dict) -> pd.DataFrame:
         "btc_dominance": data.get("market_cap_percentage", {}).get("btc"),
         "eth_dominance": data.get("market_cap_percentage", {}).get("eth"),
         "active_coins": data.get("active_cryptocurrencies"),
-        "fetched_at": datetime.utcnow(),
+        "fetched_at": ts,
     }
     return pd.DataFrame([row])
 
 
 def add_volatility_flag(df: pd.DataFrame, threshold=5.0) -> pd.DataFrame:
-    # flag coins moving more than threshold% in 24h
     df["is_volatile"] = df["change_24h"].abs() > threshold
     return df
 
@@ -65,11 +67,12 @@ def save_processed(df: pd.DataFrame, name: str):
 
 
 def run(raw_data: dict):
-    prices_df = transform_prices(raw_data["prices"])
+    batch_ts = datetime.utcnow()  # one timestamp for the whole batch
+    prices_df = transform_prices(raw_data["prices"], batch_ts)
     prices_df = add_volatility_flag(prices_df)
 
-    trending_df = transform_trending(raw_data["trending"])
-    global_df = transform_global(raw_data["global"])
+    trending_df = transform_trending(raw_data["trending"], batch_ts)
+    global_df = transform_global(raw_data["global"], batch_ts)
 
     save_processed(prices_df, "prices")
     save_processed(trending_df, "trending")
