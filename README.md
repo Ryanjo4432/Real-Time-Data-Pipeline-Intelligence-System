@@ -52,40 +52,45 @@ market-intelligence-pipeline/
 
 ---
 
-## Setup
+## Setup (Docker — recommended)
 
-**1. Clone & install**
-```bash
-git clone https://github.com/Ryanjo4432/Real-Time-Data-Pipeline-Intelligence-System.git
-cd Real-Time-Data-Pipeline-Intelligence-System
-pip install -r requirements.txt
+PostgreSQL runs on your local machine. Containers connect to it via `host.docker.internal`.
+
+**1. Allow Docker to reach your local Postgres**
+
+In `postgresql.conf`:
 ```
-
-**2. Configure environment**
-```bash
-cp .env.example .env
-# fill in your PostgreSQL credentials
+listen_addresses = '*'
 ```
+In `pg_hba.conf` add:
+```
+host  all  all  172.16.0.0/12  md5
+```
+Then restart Postgres.
 
-**3. Create the database**
+**2. Create the database**
 ```bash
 psql -U postgres -f sql/schema.sql
 ```
 
-**4. Run the pipeline once**
+**3. Configure environment**
 ```bash
-cd scripts
-python pipeline.py
+cp .env.example .env
+# .env already uses host.docker.internal for DB_HOST
+# fill in DB_USER, DB_PASSWORD
 ```
 
-**5. Start the scheduler** (runs every 5 min)
+**4. Build and run**
 ```bash
-python scheduler/scheduler.py
+docker compose up --build
 ```
 
-**6. Launch the dashboard**
+- Scheduler fires every 5 min automatically
+- Dashboard live at http://localhost:8501
+
+**5. Stop**
 ```bash
-streamlit run dashboard/app.py
+docker compose down
 ```
 
 ---
