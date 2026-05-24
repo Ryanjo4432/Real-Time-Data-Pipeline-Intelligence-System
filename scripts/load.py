@@ -3,6 +3,14 @@ import psycopg2
 from psycopg2.extras import execute_values
 from dotenv import load_dotenv
 import pandas as pd
+import numpy as np
+
+
+def _native(v):
+    if isinstance(v, (np.integer,)): return int(v)
+    if isinstance(v, (np.floating,)): return float(v)
+    if isinstance(v, (np.bool_,)): return bool(v)
+    return v
 
 load_dotenv()
 
@@ -22,8 +30,8 @@ def get_conn():
 def load_prices(df: pd.DataFrame):
     rows = [
         (
-            r["coin_id"], r["price_usd"], r["market_cap"],
-            r["volume_24h"], r["change_24h"], r["is_volatile"], r["fetched_at"]
+            r["coin_id"], _native(r["price_usd"]), _native(r["market_cap"]),
+            _native(r["volume_24h"]), _native(r["change_24h"]), _native(r["is_volatile"]), r["fetched_at"]
         )
         for _, r in df.iterrows()
     ]
@@ -39,7 +47,7 @@ def load_prices(df: pd.DataFrame):
 
 def load_trending(df: pd.DataFrame):
     rows = [
-        (r["coin_id"], r["name"], r["symbol"], r["market_cap_rank"], r["fetched_at"])
+        (r["coin_id"], r["name"], r["symbol"], _native(r["market_cap_rank"]), r["fetched_at"])
         for _, r in df.iterrows()
     ]
     sql = """
@@ -61,9 +69,9 @@ def load_global(df: pd.DataFrame):
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(sql, (
-                r["total_market_cap_usd"], r["total_volume_usd"],
-                r["btc_dominance"], r["eth_dominance"],
-                r["active_coins"], r["fetched_at"]
+                _native(r["total_market_cap_usd"]), _native(r["total_volume_usd"]),
+                _native(r["btc_dominance"]), _native(r["eth_dominance"]),
+                _native(r["active_coins"]), r["fetched_at"]
             ))
     print("loaded global metrics")
 
